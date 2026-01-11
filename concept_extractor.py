@@ -1,53 +1,34 @@
 import nltk
-from nltk.tokenize import sent_tokenize
-from transformers import pipeline
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+from collections import Counter
 
-# Download tokenizer once
-nltk.download("punkt", quiet=True)
+nltk.download("punkt")
+nltk.download("stopwords")
 
-# Lightweight model for concept extraction
-concept_model = pipeline(
-    "text2text-generation",
-    model="google/flan-t5-base"
-)
-
-def extract_concepts(text, max_concepts=5):
+def extract_concepts(text, top_n=8):
     """
-    Extracts key concepts/topics from lecture text.
-    Returns a list of short concept strings.
+    Extract clean, meaningful concepts from lecture text.
     """
 
-    # Reduce input size (important for performance)
-    sentences = sent_tokenize(text)
-    short_text = " ".join(sentences[:10])
+    stop_words = set(stopwords.words("english"))
 
-    prompt = f"""
-Extract {max_concepts} important key concepts or topics
-from the lecture content below.
-Return only the concept names as a list.
+    words = word_tokenize(text.lower())
 
-LECTURE:
-{short_text}
+    # ✅ STRICT filtering
+    filtered = [
+        w for w in words
+        if w.isalpha()
+        and w not in stop_words
+        and len(w) > 3            # remove short junk
+        and w not in {"sorry", "apologies"}
+    ]
 
-CONCEPTS:
-"""
+    freq = Counter(filtered)
 
-    try:
-        output = concept_model(
-            prompt,
-            max_length=120,
-            do_sample=False
-        )[0]["generated_text"]
+    concepts = [w for w, _ in freq.most_common(top_n)]
 
-        # Clean output
-        concepts = [
-            c.strip("•-1234567890. ")
-            for c in output.split("\n")
-            if len(c.strip()) > 3
-        ]
+    # Remove duplicates safely
+    concepts = list(dict.fromkeys(concepts))
 
-        return concepts[:max_concepts]
-
-    except Exception:
-        # Fallback: return sentence-based concepts
-        return sentences[:max_concepts]
+    return concepts
