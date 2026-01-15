@@ -1,7 +1,6 @@
 streamlit
 torch
 transformers
-sentencepiece
-numpy
 soundfile
+numpy
 nltk
